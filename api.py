@@ -6,19 +6,44 @@ import shutil
 import subprocess
 import ctypes
 import struct
+import json
 from ctypes import wintypes
 from pathlib import Path
 from send2trash import send2trash
 
 ROOT_PATH = r"C:\dev"
 
-# 허용 경로 목록 — 사이드바 즐겨찾기와 동기화
-ALLOWED_PATHS = [
-    r"C:\dev",
-    os.path.expanduser(r"~\Downloads"),
-    os.path.expanduser(r"~\Documents"),
-    os.path.expanduser(r"~\Desktop"),
+FAVORITES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "favorites.json")
+
+DEFAULT_FAVORITES = [
+    {"name": "dev", "path": r"C:\dev", "icon": "\U0001f4bb"},
+    {"name": "다운로드", "path": os.path.expanduser(r"~\Downloads"), "icon": "\U0001f4e5"},
+    {"name": "문서", "path": os.path.expanduser(r"~\Documents"), "icon": "\U0001f4c4"},
+    {"name": "바탕 화면", "path": os.path.expanduser(r"~\Desktop"), "icon": "\U0001f5a5\ufe0f"},
 ]
+
+def _load_favorites():
+    """favorites.json에서 즐겨찾기 목록을 읽는다. 없으면 기본값으로 생성."""
+    if not os.path.exists(FAVORITES_PATH):
+        _save_favorites(DEFAULT_FAVORITES)
+        return DEFAULT_FAVORITES[:]
+    try:
+        with open(FAVORITES_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return DEFAULT_FAVORITES[:]
+
+def _save_favorites(favorites):
+    """즐겨찾기 목록을 favorites.json에 저장한다."""
+    with open(FAVORITES_PATH, "w", encoding="utf-8") as f:
+        json.dump(favorites, f, ensure_ascii=False, indent=2)
+
+def _get_allowed_paths():
+    """즐겨찾기 경로 목록을 ALLOWED_PATHS로 반환한다."""
+    favs = _load_favorites()
+    return [fav["path"] for fav in favs]
+
+ALLOWED_PATHS = _get_allowed_paths()
 
 HIDDEN_NAMES = {"__pycache__", "node_modules", ".venv", ".git", ".claude", "$RECYCLE.BIN", "System Volume Information"}
 
@@ -86,24 +111,78 @@ class Api:
     def _is_allowed(self, path_str: str) -> bool:
         """경로가 허용 목록 안에 있는지 확인한다."""
         resolved = str(Path(path_str).resolve())
-        for allowed in ALLOWED_PATHS:
-            if resolved.startswith(os.path.abspath(allowed)):
+        allowed = _get_allowed_paths()
+        for a in allowed:
+            if resolved.startswith(os.path.abspath(a)):
                 return True
         return False
 
     def get_favorites(self) -> list:
         """사이드바 즐겨찾기 목록을 반환한다."""
-        items = [
-            {"name": "dev", "path": r"C:\dev", "icon": "💻"},
-            {"name": "다운로드", "path": os.path.expanduser(r"~\Downloads"), "icon": "📥"},
-            {"name": "문서", "path": os.path.expanduser(r"~\Documents"), "icon": "📄"},
-            {"name": "바탕 화면", "path": os.path.expanduser(r"~\Desktop"), "icon": "🖥️"},
-        ]
+        favs = _load_favorites()
         result = []
-        for item in items:
+        for item in favs:
             if os.path.isdir(item["path"]):
                 result.append(item)
         return result
+
+    def add_favorite(self) -> dict:
+        """폴더 선택 다이얼로그를 열어 즐겨찾기에 추가한다."""
+        try:
+            import webview
+            window = webview.windows[0]
+            result = window.create_file_dialog(webview.FOLDER_DIALOG)
+            if not result or len(result) == 0:
+                return {"success": False, "error": "선택 취소"}
+            folder_path = result[0]
+            favs = _load_favorites()
+            # 중복 확인
+            for fav in favs:
+                if os.path.abspath(fav["path"]) == os.path.abspath(folder_path):
+                    return {"success": False, "error": "이미 등록된 경로입니다"}
+            name = os.path.basename(folder_path)
+            if not name:
+                name = folder_path  # 드라이브 루트 (G:\)
+            # 아이콘 자동 결정
+            icon = "\U0001f4c1"  # 기본 폴더
+            if len(folder_path) <= 3 and folder_path[1] == ":":
+                icon = "\U0001f4bf"  # 드라이브
+            favs.append({"name": name, "path": folder_path, "icon": icon})
+            _save_favorites(favs)
+            return {"success": True, "favorites": self.get_favorites()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def remove_favorite(self, path: str) -> dict:
+        """즐겨찾기에서 해당 경로를 제거한다."""
+        try:
+            favs = _load_favorites()
+            new_favs = [f for f in favs if os.path.abspath(f["path"]) != os.path.abspath(path)]
+            if len(new_favs) == len(favs):
+                return {"success": False, "error": "해당 경로를 찾을 수 없습니다"}
+            if len(new_favs) == 0:
+                return {"success": False, "error": "최소 1개의 즐겨찾기가 필요합니다"}
+            _save_favorites(new_favs)
+            return {"success": True, "favorites": self.get_favorites()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    def rename_favorite(self, path: str, new_name: str) -> dict:
+        """즐겨찾기 항목의 표시 이름을 변경한다."""
+        try:
+            favs = _load_favorites()
+            found = False
+            for fav in favs:
+                if os.path.abspath(fav["path"]) == os.path.abspath(path):
+                    fav["name"] = new_name
+                    found = True
+                    break
+            if not found:
+                return {"success": False, "error": "해당 경로를 찾을 수 없습니다"}
+            _save_favorites(favs)
+            return {"success": True, "favorites": self.get_favorites()}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
 
     def copy_file(self, src: str, dest_dir: str) -> dict:
         """src 파일/폴더를 dest_dir로 복사한다. 동일 이름 시 번호 추가."""

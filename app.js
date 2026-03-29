@@ -103,19 +103,119 @@
 
                 item.addEventListener("click", function() {
                     rootPath = fav.path;
-                    // active 상태 갱신
                     var allItems = sidebarEl.querySelectorAll(".sidebar-item");
                     for (var j = 0; j < allItems.length; j++) {
                         allItems[j].classList.remove("active");
                     }
                     item.classList.add("active");
-                    // 컬럼 초기화
                     columnPaths = [];
                     loadColumn(rootPath, 0);
                 });
 
+                item.addEventListener("contextmenu", function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    showSidebarContextMenu(e.clientX, e.clientY, fav.path);
+                });
+
                 sidebarEl.appendChild(item);
             })(favorites[i]);
+        }
+
+        // "+" 추가 버튼
+        var addBtn = document.createElement("div");
+        addBtn.className = "sidebar-add";
+        var addIcon = document.createElement("span");
+        addIcon.className = "sidebar-add-icon";
+        addIcon.textContent = "+";
+        var addLabel = document.createElement("span");
+        addLabel.textContent = "폴더 추가";
+        addBtn.appendChild(addIcon);
+        addBtn.appendChild(addLabel);
+        addBtn.addEventListener("click", handleAddFavorite);
+        sidebarEl.appendChild(addBtn);
+    }
+
+    // --- 사이드바 즐겨찾기 관리 ---
+
+    var sidebarCtxEl = null;
+    var sidebarCtxPath = "";
+
+    function showSidebarContextMenu(x, y, path) {
+        if (!sidebarCtxEl) {
+            sidebarCtxEl = document.getElementById("sidebar-context-menu");
+            sidebarCtxEl.addEventListener("click", function(e) {
+                var item = e.target.closest(".ctx-item");
+                if (!item) return;
+                var action = item.dataset.action;
+                hideSidebarContextMenu();
+                if (action === "sidebar-remove") {
+                    handleRemoveFavorite(sidebarCtxPath);
+                } else if (action === "sidebar-rename") {
+                    handleRenameFavorite(sidebarCtxPath);
+                }
+            });
+            document.addEventListener("click", function() {
+                hideSidebarContextMenu();
+            });
+        }
+        sidebarCtxPath = path;
+        sidebarCtxEl.style.display = "block";
+
+        var menuW = sidebarCtxEl.offsetWidth;
+        var menuH = sidebarCtxEl.offsetHeight;
+        var winW = window.innerWidth;
+        var winH = window.innerHeight;
+        if (x + menuW > winW) x = winW - menuW - 4;
+        if (y + menuH > winH) y = winH - menuH - 4;
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+
+        sidebarCtxEl.style.left = x + "px";
+        sidebarCtxEl.style.top = y + "px";
+    }
+
+    function hideSidebarContextMenu() {
+        if (sidebarCtxEl) {
+            sidebarCtxEl.style.display = "none";
+        }
+    }
+
+    async function handleAddFavorite() {
+        var result = await window.pywebview.api.add_favorite();
+        if (result.success) {
+            renderSidebar(result.favorites);
+            statusbarEl.textContent = "즐겨찾기 추가됨";
+        } else if (result.error !== "선택 취소") {
+            statusbarEl.textContent = "추가 실패: " + result.error;
+        }
+    }
+
+    async function handleRemoveFavorite(path) {
+        var result = await window.pywebview.api.remove_favorite(path);
+        if (result.success) {
+            // 제거된 경로가 현재 rootPath이면 첫 항목으로 전환
+            if (path === rootPath && result.favorites.length > 0) {
+                rootPath = result.favorites[0].path;
+                columnPaths = [];
+                loadColumn(rootPath, 0);
+            }
+            renderSidebar(result.favorites);
+            statusbarEl.textContent = "즐겨찾기 제거됨";
+        } else {
+            statusbarEl.textContent = "제거 실패: " + result.error;
+        }
+    }
+
+    async function handleRenameFavorite(path) {
+        var newName = prompt("표시 이름:");
+        if (!newName || newName.trim() === "") return;
+        var result = await window.pywebview.api.rename_favorite(path, newName.trim());
+        if (result.success) {
+            renderSidebar(result.favorites);
+            statusbarEl.textContent = "이름 변경됨";
+        } else {
+            statusbarEl.textContent = "이름 변경 실패: " + result.error;
         }
     }
 
