@@ -202,6 +202,69 @@ class Api:
                 pass
             return {'success': False, 'error': str(e)}
 
+    def copy_files_to_clipboard(self, file_paths):
+        """시스템 클립보드에 여러 파일을 CF_HDROP 포맷으로 복사"""
+        try:
+            import ctypes
+            from ctypes import wintypes as w
+            import struct
+
+            valid_paths = []
+            for fp in file_paths:
+                abs_path = os.path.abspath(fp)
+                if os.path.exists(abs_path):
+                    valid_paths.append(abs_path)
+            if not valid_paths:
+                return {'success': False, 'error': '유효한 파일이 없습니다'}
+
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel32.GlobalAlloc.argtypes = [w.UINT, ctypes.c_size_t]
+            kernel32.GlobalAlloc.restype = w.HGLOBAL
+            kernel32.GlobalLock.argtypes = [w.HGLOBAL]
+            kernel32.GlobalLock.restype = w.LPVOID
+            kernel32.GlobalUnlock.argtypes = [w.HGLOBAL]
+            kernel32.GlobalUnlock.restype = w.BOOL
+
+            user32 = ctypes.WinDLL('user32', use_last_error=True)
+            user32.OpenClipboard.argtypes = [w.HWND]
+            user32.OpenClipboard.restype = w.BOOL
+            user32.CloseClipboard.argtypes = []
+            user32.CloseClipboard.restype = w.BOOL
+            user32.EmptyClipboard.argtypes = []
+            user32.EmptyClipboard.restype = w.BOOL
+            user32.SetClipboardData.argtypes = [w.UINT, w.HANDLE]
+            user32.SetClipboardData.restype = w.HANDLE
+
+            CF_HDROP = 15
+            GMEM_MOVEABLE = 0x0002
+
+            offset = 20
+            encoded_paths = b''
+            for vp in valid_paths:
+                encoded_paths += vp.encode('utf-16-le') + b'\x00\x00'
+            encoded_paths += b'\x00\x00'
+            header = struct.pack('IiiII', offset, 0, 0, 0, 1)
+            data = header + encoded_paths
+
+            user32.OpenClipboard(None)
+            user32.EmptyClipboard()
+
+            hGlobal = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
+            pGlobal = kernel32.GlobalLock(hGlobal)
+            ctypes.cdll.msvcrt.memcpy(ctypes.c_void_p(pGlobal), data, len(data))
+            kernel32.GlobalUnlock(hGlobal)
+
+            user32.SetClipboardData(CF_HDROP, hGlobal)
+            user32.CloseClipboard()
+
+            return {'success': True, 'count': len(valid_paths)}
+        except Exception as e:
+            try:
+                ctypes.WinDLL('user32').CloseClipboard()
+            except:
+                pass
+            return {'success': False, 'error': str(e)}
+
     def delete_file(self, file_path):
         """파일/폴더를 휴지통으로 이동"""
         try:

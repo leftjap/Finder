@@ -12,7 +12,7 @@
     var rootPath = "";
 
     // 클립보드 상태
-    var clipboard = { path: "", mode: "" }; // mode: "copy" | "cut"
+    var clipboard = { paths: [], mode: "" }; // mode: "copy" | "cut"
 
     // 시차 클릭 이름 변경 상태
     var renameState = {
@@ -143,7 +143,8 @@
                     row.appendChild(arrow);
                 }
 
-                row.addEventListener("click", function () {
+                row.addEventListener("click", function (e) {
+                    window._lastClickEvent = e;
                     handleItemClickUnified(row, depth);
                 });
 
@@ -263,7 +264,8 @@
                     row.classList.add("selected");
                 }
 
-                row.addEventListener("click", function () {
+                row.addEventListener("click", function (e) {
+                    window._lastClickEvent = e;
                     handleItemClickUnified(row, depth);
                 });
 
@@ -287,12 +289,37 @@
     function handleItemClickUnified(row, depth) {
         var now = Date.now();
         var path = row.dataset.path;
+        var event = window._lastClickEvent;
+
+        // Ctrl+클릭: 같은 컬럼 내 토글 선택
+        if (event && event.ctrlKey) {
+            clearTimeout(renameState.renameTimeout);
+            renameState.lastClickedPath = null;
+
+            // 다른 컬럼의 선택을 해제하지 않고, 같은 컬럼 내에서만 토글
+            if (row.classList.contains("selected")) {
+                row.classList.remove("selected");
+            } else {
+                row.classList.add("selected");
+            }
+
+            // 선택 개수 표시
+            var selCount = row.parentElement.querySelectorAll(".selected").length;
+            if (selCount > 1) {
+                statusbarEl.textContent = selCount + "개 선택됨";
+            } else if (selCount === 1) {
+                var sel = row.parentElement.querySelector(".selected");
+                statusbarEl.textContent = sel ? sel.dataset.name : "";
+            } else {
+                statusbarEl.textContent = "";
+            }
+            return;
+        }
 
         // 시차 클릭 (300ms 이내) → 더블클릭 취급
         if (now - renameState.lastClickTime < 300 && renameState.lastClickedPath === path) {
             clearTimeout(renameState.renameTimeout);
             renameState.lastClickedPath = null;
-            // 더블클릭 처리 (폴더 진입 또는 파일 열기)
             handleDoubleClick(row, depth);
             return;
         }
@@ -316,10 +343,10 @@
     }
 
     function selectItem(row, depth) {
-        var col = row.parentElement;
-        var prevSelected = col.querySelector(".selected");
-        if (prevSelected) {
-            prevSelected.classList.remove("selected");
+        // 모든 컬럼의 선택 해제
+        var allSelected = columnsEl.querySelectorAll(".column-item.selected");
+        for (var i = 0; i < allSelected.length; i++) {
+            allSelected[i].classList.remove("selected");
         }
 
         row.classList.add("selected");
@@ -462,6 +489,21 @@
         return null;
     }
 
+    function getSelectedItems() {
+        var results = [];
+        var cols = columnsEl.querySelectorAll(".column");
+        for (var i = cols.length - 1; i >= 0; i--) {
+            var sels = cols[i].querySelectorAll(".selected");
+            if (sels.length > 0) {
+                for (var j = 0; j < sels.length; j++) {
+                    if (sels[j].dataset.path) results.push(sels[j]);
+                }
+                return results;
+            }
+        }
+        return results;
+    }
+
     function getCurrentDirPath() {
         // 현재 보고 있는 가장 깊은 디렉터리 경로
         // 선택된 항목이 폴더면 그 폴더, 파일이면 그 파일의 부모
@@ -481,48 +523,67 @@
     }
 
     async function handleCopy() {
-        var sel = getSelectedItem();
-        if (!sel) {
+        var items = getSelectedItems();
+        if (items.length === 0) {
             statusbarEl.textContent = "복사할 항목을 선택하세요";
             return;
         }
-        clipboard = { path: sel.dataset.path, mode: "copy" };
+        var paths = [];
+        for (var i = 0; i < items.length; i++) {
+            paths.push(items[i].dataset.path);
+        }
+        clipboard = { paths: paths, mode: "copy" };
         document.querySelectorAll(".column-item.cut").forEach(function(el) {
             el.classList.remove("cut");
         });
         try {
-            var result = await window.pywebview.api.copy_to_clipboard(sel.dataset.path);
+            var result;
+            if (paths.length === 1) {
+                result = await window.pywebview.api.copy_to_clipboard(paths[0]);
+            } else {
+                result = await window.pywebview.api.copy_files_to_clipboard(paths);
+            }
             if (result.success) {
-                statusbarEl.textContent = "복사: " + result.name;
+                statusbarEl.textContent = "복사: " + paths.length + "개 항목";
             } else {
                 statusbarEl.textContent = "복사 실패: " + result.error;
             }
         } catch (e) {
-            statusbarEl.textContent = "복사: " + sel.dataset.name;
+            statusbarEl.textContent = "복사: " + paths.length + "개 항목";
         }
     }
 
     async function handleCut() {
-        var sel = getSelectedItem();
-        if (!sel) {
+        var items = getSelectedItems();
+        if (items.length === 0) {
             statusbarEl.textContent = "잘라낼 항목을 선택하세요";
             return;
         }
-        clipboard = { path: sel.dataset.path, mode: "cut" };
+        var paths = [];
+        for (var i = 0; i < items.length; i++) {
+            paths.push(items[i].dataset.path);
+        }
+        clipboard = { paths: paths, mode: "cut" };
         document.querySelectorAll(".column-item.cut").forEach(function(el) {
             el.classList.remove("cut");
         });
-        sel.classList.add("cut");
+        for (var j = 0; j < items.length; j++) {
+            items[j].classList.add("cut");
+        }
         try {
-            await window.pywebview.api.copy_to_clipboard(sel.dataset.path);
-            statusbarEl.textContent = "잘라내기: " + sel.dataset.name;
+            if (paths.length === 1) {
+                await window.pywebview.api.copy_to_clipboard(paths[0]);
+            } else {
+                await window.pywebview.api.copy_files_to_clipboard(paths);
+            }
+            statusbarEl.textContent = "잘라내기: " + paths.length + "개 항목";
         } catch (e) {
-            statusbarEl.textContent = "잘라내기: " + sel.dataset.name;
+            statusbarEl.textContent = "잘라내기: " + paths.length + "개 항목";
         }
     }
 
     async function handlePaste() {
-        if (!clipboard.path) {
+        if (!clipboard.paths || clipboard.paths.length === 0) {
             statusbarEl.textContent = "클립보드가 비어 있습니다";
             return;
         }
@@ -530,42 +591,51 @@
         var destDir = getCurrentDirPath();
         statusbarEl.textContent = "붙여넣는 중...";
 
-        var result;
-        if (clipboard.mode === "copy") {
-            result = await window.pywebview.api.copy_file(clipboard.path, destDir);
-        } else {
-            result = await window.pywebview.api.move_file(clipboard.path, destDir);
+        var successCount = 0;
+        var lastError = "";
+
+        for (var i = 0; i < clipboard.paths.length; i++) {
+            var result;
+            if (clipboard.mode === "copy") {
+                result = await window.pywebview.api.copy_file(clipboard.paths[i], destDir);
+            } else {
+                result = await window.pywebview.api.move_file(clipboard.paths[i], destDir);
+            }
+            if (result.error) {
+                lastError = result.error;
+            } else {
+                successCount++;
+            }
         }
 
-        if (result.error) {
-            statusbarEl.textContent = "오류: " + result.error;
-            return;
-        }
-
-        // cut이면 원본 컬럼도 새로고침 + 클립보드 초기화
         if (clipboard.mode === "cut") {
-            var srcDir = clipboard.path.substring(0, clipboard.path.lastIndexOf("\\"));
-            // 원본 폴더가 보이는 컬럼 찾아서 새로고침
-            for (var i = 0; i < columnsEl.children.length; i++) {
-                if (columnsEl.children[i].dataset.path === srcDir) {
-                    await refreshColumn(i);
+            // 원본 컬럼 새로고침
+            var srcDir = clipboard.paths[0].substring(0, clipboard.paths[0].lastIndexOf("\\"));
+            var cols = columnsEl.querySelectorAll(".column");
+            for (var k = 0; k < cols.length; k++) {
+                if (cols[k].dataset.path === srcDir) {
+                    await refreshColumn(parseInt(cols[k].dataset.depth));
                     break;
                 }
             }
-            clipboard = { path: "", mode: "" };
+            clipboard = { paths: [], mode: "" };
             clearCutStyle();
         }
 
         // 대상 컬럼 새로고침
-        for (var j = 0; j < columnsEl.children.length; j++) {
-            if (columnsEl.children[j].dataset.path === destDir) {
-                await refreshColumn(j);
+        var cols2 = columnsEl.querySelectorAll(".column");
+        for (var m = 0; m < cols2.length; m++) {
+            if (cols2[m].dataset.path === destDir) {
+                await refreshColumn(parseInt(cols2[m].dataset.depth));
                 break;
             }
         }
 
-        var filename = result.dest.substring(result.dest.lastIndexOf("\\") + 1);
-        statusbarEl.textContent = "완료: " + filename;
+        if (lastError) {
+            statusbarEl.textContent = "완료 " + successCount + "개, 실패: " + lastError;
+        } else {
+            statusbarEl.textContent = "완료: " + successCount + "개 항목";
+        }
     }
 
     function clearCutStyle() {
@@ -618,34 +688,41 @@
     // --- Delete 휴지통 삭제 ---
 
     async function handleDelete() {
-        var selected = getSelectedItem();
-        if (!selected) return;
-        var name = selected.dataset.name;
-        var path = selected.dataset.path;
-        var isDir = selected.dataset.isDir === "true";
-        if (!confirm(name + '을(를) 휴지통으로 이동하시겠습니까?')) return;
-        try {
-            var result = await window.pywebview.api.delete_file(path);
-            if (result.success) {
-                statusbarEl.textContent = '삭제됨: ' + result.name;
-                // 현재 컬럼 찾기
-                var col = selected.parentElement;
-                var depth = parseInt(col.dataset.depth);
-                // 폴더 삭제면 하위 컬럼 제거
-                if (isDir) {
-                    while (columnsEl.children.length > (depth + 1) * 2) {
-                        columnsEl.removeChild(columnsEl.lastChild);
-                    }
-                    columnPaths = columnPaths.slice(0, depth + 1);
-                }
-                // 현재 컬럼 새로고침
-                refreshColumn(depth);
-            } else {
-                statusbarEl.textContent = '삭제 실패: ' + result.error;
-            }
-        } catch (e) {
-            statusbarEl.textContent = '삭제 실패: ' + e.message;
+        var items = getSelectedItems();
+        if (items.length === 0) return;
+
+        var msg;
+        if (items.length === 1) {
+            msg = items[0].dataset.name + '을(를) 휴지통으로 이동하시겠습니까?';
+        } else {
+            msg = items.length + '개 항목을 휴지통으로 이동하시겠습니까?';
         }
+        if (!confirm(msg)) return;
+
+        var col = items[0].parentElement;
+        var depth = parseInt(col.dataset.depth);
+        var hasDir = false;
+        var successCount = 0;
+
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].dataset.isDir === "true") hasDir = true;
+            try {
+                var result = await window.pywebview.api.delete_file(items[i].dataset.path);
+                if (result.success) successCount++;
+            } catch (e) {
+                // continue
+            }
+        }
+
+        if (hasDir) {
+            while (columnsEl.children.length > (depth + 1) * 2) {
+                columnsEl.removeChild(columnsEl.lastChild);
+            }
+            columnPaths = columnPaths.slice(0, depth + 1);
+        }
+
+        refreshColumn(depth);
+        statusbarEl.textContent = '삭제됨: ' + successCount + '개 항목';
     }
 
     // --- Ctrl+Shift+N 새 폴더 ---
@@ -886,15 +963,21 @@
 
     function showContextMenu(x, y) {
         var hasTarget = contextTarget !== null;
-        var hasClipboard = clipboard.path !== "";
+        var hasClipboard = clipboard.paths && clipboard.paths.length > 0;
+        var multiSelected = false;
 
-        // 항목별 활성/비활성
+        if (hasTarget) {
+            var col = contextTarget.parentElement;
+            var selCount = col ? col.querySelectorAll(".selected").length : 0;
+            multiSelected = selCount > 1;
+        }
+
         var items = contextMenuEl.querySelectorAll(".ctx-item");
         for (var i = 0; i < items.length; i++) {
             var action = items[i].dataset.action;
             items[i].classList.remove("disabled");
 
-            if (action === "open" && !hasTarget) {
+            if (action === "open" && (!hasTarget || multiSelected)) {
                 items[i].classList.add("disabled");
             }
             if ((action === "copy" || action === "cut") && !hasTarget) {
@@ -903,7 +986,7 @@
             if (action === "paste" && !hasClipboard) {
                 items[i].classList.add("disabled");
             }
-            if (action === "rename" && !hasTarget) {
+            if (action === "rename" && (!hasTarget || multiSelected)) {
                 items[i].classList.add("disabled");
             }
             if (action === "delete" && !hasTarget) {
@@ -911,7 +994,6 @@
             }
         }
 
-        // 위치 결정 (화면 밖으로 나가지 않도록)
         contextMenuEl.style.display = "block";
         var menuW = contextMenuEl.offsetWidth;
         var menuH = contextMenuEl.offsetHeight;
