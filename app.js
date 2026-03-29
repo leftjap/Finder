@@ -92,7 +92,8 @@
     // --- 컬럼 로드 ---
 
     async function loadColumn(path, depth) {
-        while (columnsEl.children.length > depth) {
+        // depth 이후의 컬럼 + 리사이저 모두 제거
+        while (columnsEl.children.length > depth * 2) {
             columnsEl.removeChild(columnsEl.lastChild);
         }
         columnPaths = columnPaths.slice(0, depth);
@@ -151,10 +152,52 @@
         }
 
         columnsEl.appendChild(col);
+
+        // 리사이저 추가 (컬럼 오른쪽)
+        var resizer = document.createElement("div");
+        resizer.className = "column-resizer";
+        resizer.dataset.depth = depth;
+        columnsEl.appendChild(resizer);
+
+        initResizer(resizer, col);
+
         columnsEl.scrollLeft = columnsEl.scrollWidth;
 
         updateBreadcrumb();
         updateStatusbar(result.items.length);
+    }
+
+    // --- 컬럼 리사이즈 ---
+
+    function initResizer(resizer, col) {
+        var startX = 0;
+        var startWidth = 0;
+
+        function onMouseDown(e) {
+            e.preventDefault();
+            startX = e.clientX;
+            startWidth = col.offsetWidth;
+            resizer.classList.add("active");
+            document.body.style.cursor = "col-resize";
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", onMouseUp);
+        }
+
+        function onMouseMove(e) {
+            var newWidth = startWidth + (e.clientX - startX);
+            if (newWidth < 100) newWidth = 100;
+            if (newWidth > 600) newWidth = 600;
+            col.style.width = newWidth + "px";
+        }
+
+        function onMouseUp() {
+            resizer.classList.remove("active");
+            document.body.style.cursor = "";
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+        }
+
+        resizer.addEventListener("mousedown", onMouseDown);
     }
 
     // --- 컬럼 새로고침 ---
@@ -165,7 +208,7 @@
         var result = await window.pywebview.api.list_dir(path);
         if (result.error) return;
 
-        var col = columnsEl.children[depth];
+        var col = getColumnByDepth(depth);
         if (!col) return;
 
         var selectedName = null;
@@ -221,6 +264,14 @@
         updateStatusbar(result.items.length);
     }
 
+    function getColumnByDepth(depth) {
+        var cols = columnsEl.querySelectorAll(".column");
+        for (var i = 0; i < cols.length; i++) {
+            if (parseInt(cols[i].dataset.depth) === depth) return cols[i];
+        }
+        return null;
+    }
+
     // --- 클릭 핸들러 ---
 
     function handleItemClickUnified(row, depth) {
@@ -266,7 +317,7 @@
         if (row.dataset.isDir === "true") {
             loadColumn(row.dataset.path, depth + 1);
         } else {
-            while (columnsEl.children.length > depth + 1) {
+            while (columnsEl.children.length > (depth + 1) * 2) {
                 columnsEl.removeChild(columnsEl.lastChild);
             }
             columnPaths = columnPaths.slice(0, depth + 1);
@@ -297,16 +348,14 @@
     // --- 키보드 ---
 
     function getActiveColumn() {
-        // 선택된 항목이 있는 가장 깊은 컬럼
-        for (var i = columnsEl.children.length - 1; i >= 0; i--) {
-            var col = columnsEl.children[i];
-            if (col.querySelector(".selected")) {
-                return { col: col, depth: parseInt(col.dataset.depth) };
+        var cols = columnsEl.querySelectorAll(".column");
+        for (var i = cols.length - 1; i >= 0; i--) {
+            if (cols[i].querySelector(".selected")) {
+                return { col: cols[i], depth: parseInt(cols[i].dataset.depth) };
             }
         }
-        // 선택된 게 없으면 첫 번째 컬럼
-        if (columnsEl.children.length > 0) {
-            return { col: columnsEl.children[0], depth: 0 };
+        if (cols.length > 0) {
+            return { col: cols[0], depth: 0 };
         }
         return null;
     }
@@ -375,8 +424,8 @@
         } else if (e.key === "ArrowLeft" || e.key === "Backspace") {
             e.preventDefault();
             if (depth > 0) {
-                // 현재 컬럼 이후 제거
-                while (columnsEl.children.length > depth) {
+                // 현재 컬럼 이후 제거 (리사이저 포함)
+                while (columnsEl.children.length > depth * 2) {
                     columnsEl.removeChild(columnsEl.lastChild);
                 }
                 columnPaths = columnPaths.slice(0, depth);
@@ -574,7 +623,7 @@
                 var depth = parseInt(col.dataset.depth);
                 // 폴더 삭제면 하위 컬럼 제거
                 if (isDir) {
-                    while (columnsEl.children.length > depth + 1) {
+                    while (columnsEl.children.length > (depth + 1) * 2) {
                         columnsEl.removeChild(columnsEl.lastChild);
                     }
                     columnPaths = columnPaths.slice(0, depth + 1);

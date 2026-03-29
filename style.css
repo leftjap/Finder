@@ -64,12 +64,25 @@ body {
 
 /* 개별 컬럼 */
 .column {
-    min-width: 220px;
-    max-width: 300px;
+    min-width: 100px;
     width: 220px;
-    border-right: 1px solid #333;
+    border-right: none;
     overflow-y: auto;
     flex-shrink: 0;
+}
+
+/* 컬럼 리사이즈 핸들 */
+.column-resizer {
+    width: 5px;
+    cursor: col-resize;
+    background: #333;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+.column-resizer:hover,
+.column-resizer.active {
+    background: #007acc;
 }
 
 /* 컬럼 내 항목 */
