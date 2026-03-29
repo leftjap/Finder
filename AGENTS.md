@@ -48,7 +48,7 @@ cd C:\dev\apps\explorer
 pyinstaller Explorer.spec
 ```
 
-출력 경로: `C:\dev\apps\explorer\build\Explorer\Explorer.exe`
+출력 경로: `C:\dev\apps\explorer\dist\Explorer.exe`
 
 ### 경로 보안
 api.py의 `_is_allowed()`로 모든 파일 접근을 제한. favorites.json의 경로가 ALLOWED_PATHS와 동기화됨. 우회 금지.
