@@ -1,19 +1,25 @@
-# PROJECT: explorer
-# CLAUDE.md — Explorer (Miller Columns 파일 탐색기)
+# Explorer — CLAUDE.md
 
-## 실행 방법
-- 사용자: `run.vbs` 더블클릭 (CMD 창 없이 앱만 실행)
-- 개발자: 터미널에서 `cd C:\dev\apps\explorer && .venv\Scripts\activate && python main.py`
+## 프로젝트
 
-## 구조
-- main.py: pywebview 윈도우 생성 + API 연결
-- api.py: 파일 시스템 API (list_dir, open_file, copy, move)
-- index.html: UI 레이아웃
-- style.css: Miller Columns 스타일
-- app.js: Miller Columns 로직 + 이벤트
+Windows Miller Columns 파일 탐색기. Python pywebview + HTML/JS/CSS.
 
-## 주의사항
-- Python 3.13 venv 사용 (.venv). 시스템 Python 3.14와 별도.
-- pywebview는 pythonnet 의존 → Python 3.14 미지원 → 3.13 고정.
-- Windows 전용. Unix 도구 금지 (L-08).
-- 루트 경로는 api.py의 ROOT_PATH 상수. 하드코딩 C:\dev.
+## 핵심 규칙
+
+1. 코드 변경 후 exe 재빌드 필수:
+   ```
+   .venv\Scripts\activate
+   pyinstaller Explorer.spec -y
+   ```
+2. favorites.json은 gitignore 대상. 런타임 자동 생성.
+3. ALLOWED_PATHS는 favorites.json에서 동적 로드. 하드코딩 금지.
+4. 파일 경로는 Windows 절대 경로 (`\` 구분자).
+5. api.py의 _is_allowed()로 경로 보안 체크. 우회 금지.
+
+## 파일 역할
+
+- main.py: pywebview 엔트리포인트
+- api.py: 파일시스템 API
+- app.js: 프론트엔드 로직
+- index.html: HTML
+- style.css: CSS
