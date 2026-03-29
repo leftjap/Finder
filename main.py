@@ -15,7 +15,7 @@ def main():
         height=700,
         min_size=(800, 400),
     )
-    webview.start(debug=False)
+    webview.start(debug=False, icon="icon.ico")
 
 
 if __name__ == "__main__":
