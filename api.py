@@ -135,37 +135,54 @@ class Api:
                 return candidate
             counter += 1
 
-    def copy_to_clipboard(self, file_path: str) -> dict:
+    def copy_to_clipboard(self, file_path):
         """시스템 클립보드에 파일을 CF_HDROP 포맷으로 복사"""
         try:
+            import ctypes
+            from ctypes import wintypes as w
+            import struct
+
             file_path = os.path.abspath(file_path)
             if not os.path.exists(file_path):
                 return {'success': False, 'error': '파일이 존재하지 않습니다'}
 
-            # DROPFILES 구조체: 20바이트 헤더
-            # pFiles(4) + pt.x(4) + pt.y(4) + fNC(4) + fWide(4)
-            offset = 20
-            fWide = 1  # 유니코드 사용
+            # ctypes 함수 타입 명시 선언 (64비트 필수)
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+            kernel32.GlobalAlloc.argtypes = [w.UINT, ctypes.c_size_t]
+            kernel32.GlobalAlloc.restype = w.HGLOBAL
+            kernel32.GlobalLock.argtypes = [w.HGLOBAL]
+            kernel32.GlobalLock.restype = w.LPVOID
+            kernel32.GlobalUnlock.argtypes = [w.HGLOBAL]
+            kernel32.GlobalUnlock.restype = w.BOOL
+            kernel32.RtlCopyMemory = ctypes.cdll.msvcrt.memcpy
+            kernel32.RtlCopyMemory.argtypes = [w.LPVOID, w.LPCVOID, ctypes.c_size_t]
+            kernel32.RtlCopyMemory.restype = None
 
-            # 파일 경로를 UTF-16LE로 인코딩 + 이중 널 종료
-            encoded = file_path.encode('utf-16-le') + b'\x00\x00' + b'\x00\x00'
+            user32 = ctypes.WinDLL('user32', use_last_error=True)
+            user32.OpenClipboard.argtypes = [w.HWND]
+            user32.OpenClipboard.restype = w.BOOL
+            user32.CloseClipboard.argtypes = []
+            user32.CloseClipboard.restype = w.BOOL
+            user32.EmptyClipboard.argtypes = []
+            user32.EmptyClipboard.restype = w.BOOL
+            user32.SetClipboardData.argtypes = [w.UINT, w.HANDLE]
+            user32.SetClipboardData.restype = w.HANDLE
 
-            # DROPFILES 헤더 생성
-            header = struct.pack('IiiII', offset, 0, 0, 0, fWide)
-            data = header + encoded
-
-            GHND = 0x0042
             CF_HDROP = 15
+            GMEM_MOVEABLE = 0x0002
 
-            kernel32 = ctypes.windll.kernel32
-            user32 = ctypes.windll.user32
+            # DROPFILES 구조체 (20바이트) + UTF-16LE 파일경로 + 이중 널 종료
+            offset = 20
+            encoded_path = file_path.encode('utf-16-le') + b'\x00\x00' + b'\x00\x00'
+            header = struct.pack('IiiII', offset, 0, 0, 0, 1)
+            data = header + encoded_path
 
             user32.OpenClipboard(None)
             user32.EmptyClipboard()
 
-            hGlobal = kernel32.GlobalAlloc(GHND, len(data))
+            hGlobal = kernel32.GlobalAlloc(GMEM_MOVEABLE, len(data))
             pGlobal = kernel32.GlobalLock(hGlobal)
-            ctypes.memmove(pGlobal, data, len(data))
+            ctypes.cdll.msvcrt.memcpy(ctypes.c_void_p(pGlobal), data, len(data))
             kernel32.GlobalUnlock(hGlobal)
 
             user32.SetClipboardData(CF_HDROP, hGlobal)
@@ -174,7 +191,7 @@ class Api:
             return {'success': True, 'name': os.path.basename(file_path)}
         except Exception as e:
             try:
-                ctypes.windll.user32.CloseClipboard()
+                ctypes.WinDLL('user32').CloseClipboard()
             except:
                 pass
             return {'success': False, 'error': str(e)}
