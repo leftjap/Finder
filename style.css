@@ -54,6 +54,63 @@ body {
     color: #555;
 }
 
+/* 메인 영역 (사이드바 + 컬럼) */
+#main-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* 사이드바 */
+#sidebar {
+    width: 180px;
+    min-width: 120px;
+    max-width: 300px;
+    background: #252526;
+    border-right: none;
+    overflow-y: auto;
+    flex-shrink: 0;
+    padding: 8px 0;
+}
+
+#sidebar-resizer {
+    width: 5px;
+    cursor: col-resize;
+    background: #333;
+    flex-shrink: 0;
+    transition: background 0.15s;
+}
+
+#sidebar-resizer:hover,
+#sidebar-resizer.active {
+    background: #007acc;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    cursor: pointer;
+    color: #ccc;
+    font-size: 13px;
+    border-radius: 0;
+}
+
+.sidebar-item:hover {
+    background: #2a2d2e;
+}
+
+.sidebar-item.active {
+    background: #094771;
+    color: #fff;
+}
+
+.sidebar-item .sidebar-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
 /* 컬럼 컨테이너 */
 #columns {
     display: flex;

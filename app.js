@@ -7,6 +7,8 @@
     var columnsEl = document.getElementById("columns");
     var breadcrumbEl = document.getElementById("breadcrumb");
     var statusbarEl = document.getElementById("statusbar");
+    var sidebarEl = document.getElementById("sidebar");
+    var sidebarResizerEl = document.getElementById("sidebar-resizer");
 
     var columnPaths = [];
     var rootPath = "";
@@ -24,32 +26,26 @@
     // --- 초기화 ---
 
     async function init() {
-        // Capture phase keydown 리스너 (최우선 처리 + preventDefault)
         document.addEventListener('keydown', function(e) {
-            // Ctrl+C: 복사
             if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'KeyC') {
                 e.preventDefault();
                 e.stopPropagation();
                 handleCopy();
                 return;
             }
-            // Ctrl+X: 잘라내기
             if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'KeyX') {
                 e.preventDefault();
                 e.stopPropagation();
                 handleCut();
                 return;
             }
-            // Ctrl+V: 붙여넣기
             if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'KeyV') {
                 e.preventDefault();
                 e.stopPropagation();
                 handlePaste();
                 return;
             }
-            // Delete: 휴지통 삭제
             if (e.code === 'Delete' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
-                // rename 활성화 중이면 스킵
                 if (document.querySelector('.name[contenteditable="true"]')) {
                     return;
                 }
@@ -58,16 +54,13 @@
                 handleDelete();
                 return;
             }
-            // Ctrl+Shift+N: 새 폴더
             if (e.ctrlKey && e.shiftKey && !e.altKey && e.code === 'KeyN') {
                 e.preventDefault();
                 e.stopPropagation();
                 handleNewFolder();
                 return;
             }
-            // Ctrl+Z: 실행 취소
             if (e.ctrlKey && !e.shiftKey && !e.altKey && e.code === 'KeyZ') {
-                // rename 활성화 중이면 스킵 (텍스트 undo)
                 if (document.querySelector('.name[contenteditable="true"]')) {
                     return;
                 }
@@ -76,13 +69,94 @@
                 handleUndo();
                 return;
             }
-            // 나머지 키는 기존 로직
             handleKeydown(e);
         }, true);
 
         initContextMenu();
-        rootPath = await window.pywebview.api.get_root();
+        initSidebarResizer();
+
+        var favorites = await window.pywebview.api.get_favorites();
+        renderSidebar(favorites);
+
+        rootPath = favorites.length > 0 ? favorites[0].path : await window.pywebview.api.get_root();
         await loadColumn(rootPath, 0);
+    }
+
+    function renderSidebar(favorites) {
+        sidebarEl.innerHTML = "";
+        for (var i = 0; i < favorites.length; i++) {
+            (function(fav) {
+                var item = document.createElement("div");
+                item.className = "sidebar-item";
+                if (fav.path === rootPath) item.classList.add("active");
+                item.dataset.path = fav.path;
+
+                var icon = document.createElement("span");
+                icon.className = "sidebar-icon";
+                icon.textContent = fav.icon;
+
+                var name = document.createElement("span");
+                name.textContent = fav.name;
+
+                item.appendChild(icon);
+                item.appendChild(name);
+
+                item.addEventListener("click", function() {
+                    rootPath = fav.path;
+                    // active 상태 갱신
+                    var allItems = sidebarEl.querySelectorAll(".sidebar-item");
+                    for (var j = 0; j < allItems.length; j++) {
+                        allItems[j].classList.remove("active");
+                    }
+                    item.classList.add("active");
+                    // 컬럼 초기화
+                    columnPaths = [];
+                    loadColumn(rootPath, 0);
+                });
+
+                sidebarEl.appendChild(item);
+            })(favorites[i]);
+        }
+    }
+
+    function initSidebarResizer() {
+        var startX = 0;
+        var startWidth = 0;
+        var overlay = null;
+
+        function onMouseDown(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            startX = e.clientX;
+            startWidth = sidebarEl.offsetWidth;
+            sidebarResizerEl.classList.add("active");
+
+            overlay = document.createElement("div");
+            overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;cursor:col-resize;";
+            document.body.appendChild(overlay);
+
+            overlay.addEventListener("mousemove", onMouseMove);
+            overlay.addEventListener("mouseup", onMouseUp);
+        }
+
+        function onMouseMove(e) {
+            var newWidth = startWidth + (e.clientX - startX);
+            if (newWidth < 120) newWidth = 120;
+            if (newWidth > 300) newWidth = 300;
+            sidebarEl.style.width = newWidth + "px";
+        }
+
+        function onMouseUp() {
+            sidebarResizerEl.classList.remove("active");
+            if (overlay) {
+                overlay.removeEventListener("mousemove", onMouseMove);
+                overlay.removeEventListener("mouseup", onMouseUp);
+                document.body.removeChild(overlay);
+                overlay = null;
+            }
+        }
+
+        sidebarResizerEl.addEventListener("mousedown", onMouseDown);
     }
 
     window.addEventListener("pywebviewready", function () {

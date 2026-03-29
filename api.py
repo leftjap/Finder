@@ -12,6 +12,14 @@ from send2trash import send2trash
 
 ROOT_PATH = r"C:\dev"
 
+# 허용 경로 목록 — 사이드바 즐겨찾기와 동기화
+ALLOWED_PATHS = [
+    r"C:\dev",
+    os.path.expanduser(r"~\Downloads"),
+    os.path.expanduser(r"~\Documents"),
+    os.path.expanduser(r"~\Desktop"),
+]
+
 HIDDEN_NAMES = {"__pycache__", "node_modules", ".venv", ".git", ".claude", "$RECYCLE.BIN", "System Volume Information"}
 
 # undo 스택: 작업 취소를 위한 히스토리
@@ -34,7 +42,7 @@ class Api:
                 return {"error": f"경로가 존재하지 않습니다: {path_str}"}
             if not p.is_dir():
                 return {"error": f"디렉터리가 아닙니다: {path_str}"}
-            if not str(p.resolve()).startswith(ROOT_PATH):
+            if not self._is_allowed(path_str):
                 return {"error": f"허용 범위 밖: {path_str}"}
 
             items = []
@@ -64,7 +72,7 @@ class Api:
             p = Path(path_str)
             if not p.exists():
                 return {"error": f"파일이 존재하지 않습니다: {path_str}"}
-            if not str(p.resolve()).startswith(ROOT_PATH):
+            if not self._is_allowed(path_str):
                 return {"error": f"허용 범위 밖: {path_str}"}
             os.startfile(str(p))
             return {"ok": True}
@@ -75,6 +83,28 @@ class Api:
         """루트 경로를 반환한다."""
         return ROOT_PATH
 
+    def _is_allowed(self, path_str: str) -> bool:
+        """경로가 허용 목록 안에 있는지 확인한다."""
+        resolved = str(Path(path_str).resolve())
+        for allowed in ALLOWED_PATHS:
+            if resolved.startswith(os.path.abspath(allowed)):
+                return True
+        return False
+
+    def get_favorites(self) -> list:
+        """사이드바 즐겨찾기 목록을 반환한다."""
+        items = [
+            {"name": "dev", "path": r"C:\dev", "icon": "💻"},
+            {"name": "다운로드", "path": os.path.expanduser(r"~\Downloads"), "icon": "📥"},
+            {"name": "문서", "path": os.path.expanduser(r"~\Documents"), "icon": "📄"},
+            {"name": "바탕 화면", "path": os.path.expanduser(r"~\Desktop"), "icon": "🖥️"},
+        ]
+        result = []
+        for item in items:
+            if os.path.isdir(item["path"]):
+                result.append(item)
+        return result
+
     def copy_file(self, src: str, dest_dir: str) -> dict:
         """src 파일/폴더를 dest_dir로 복사한다. 동일 이름 시 번호 추가."""
         try:
@@ -84,9 +114,9 @@ class Api:
                 return {"error": f"원본이 존재하지 않습니다: {src}"}
             if not dest_p.is_dir():
                 return {"error": f"대상이 디렉터리가 아닙니다: {dest_dir}"}
-            if not str(src_p.resolve()).startswith(ROOT_PATH):
+            if not self._is_allowed(src):
                 return {"error": f"허용 범위 밖: {src}"}
-            if not str(dest_p.resolve()).startswith(ROOT_PATH):
+            if not self._is_allowed(dest_dir):
                 return {"error": f"허용 범위 밖: {dest_dir}"}
 
             target = dest_p / src_p.name
@@ -111,9 +141,9 @@ class Api:
                 return {"error": f"원본이 존재하지 않습니다: {src}"}
             if not dest_p.is_dir():
                 return {"error": f"대상이 디렉터리가 아닙니다: {dest_dir}"}
-            if not str(src_p.resolve()).startswith(ROOT_PATH):
+            if not self._is_allowed(src):
                 return {"error": f"허용 범위 밖: {src}"}
-            if not str(dest_p.resolve()).startswith(ROOT_PATH):
+            if not self._is_allowed(dest_dir):
                 return {"error": f"허용 범위 밖: {dest_dir}"}
 
             target = dest_p / src_p.name
@@ -269,7 +299,7 @@ class Api:
         """파일/폴더를 휴지통으로 이동"""
         try:
             file_path = os.path.abspath(file_path)
-            if not file_path.startswith(ROOT_PATH):
+            if not self._is_allowed(file_path):
                 return {'success': False, 'error': '허용되지 않은 경로'}
             if not os.path.exists(file_path):
                 return {'success': False, 'error': '파일이 존재하지 않습니다'}
@@ -283,7 +313,7 @@ class Api:
         """새 폴더 생성"""
         try:
             parent_dir = os.path.abspath(parent_dir)
-            if not parent_dir.startswith(ROOT_PATH):
+            if not self._is_allowed(parent_dir):
                 return {'success': False, 'error': '허용되지 않은 경로'}
             new_path = os.path.join(parent_dir, folder_name)
             if os.path.exists(new_path):
@@ -298,7 +328,7 @@ class Api:
         """파일/폴더 이름 변경"""
         try:
             old_path = os.path.abspath(old_path)
-            if not old_path.startswith(ROOT_PATH):
+            if not self._is_allowed(old_path):
                 return {'success': False, 'error': '허용되지 않은 경로'}
             if not os.path.exists(old_path):
                 return {'success': False, 'error': '파일이 존재하지 않습니다'}
