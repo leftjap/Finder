@@ -14,6 +14,7 @@ from send2trash import send2trash
 ROOT_PATH = r"C:\dev"
 
 FAVORITES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "favorites.json")
+COLUMN_WIDTHS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "column_widths.json")
 
 DEFAULT_FAVORITES = [
     {"name": "dev", "path": r"C:\dev", "icon": "\U0001f4bb"},
@@ -462,3 +463,22 @@ class Api:
             return {'success': False, 'error': '취소할 수 없는 작업'}
         except Exception as e:
             return {'success': False, 'error': str(e)}
+
+    def get_column_widths(self):
+        """저장된 컬럼 너비를 반환한다."""
+        try:
+            if os.path.exists(COLUMN_WIDTHS_PATH):
+                with open(COLUMN_WIDTHS_PATH, "r", encoding="utf-8") as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return {}
+
+    def save_column_widths(self, widths):
+        """컬럼 너비를 파일에 저장한다."""
+        try:
+            with open(COLUMN_WIDTHS_PATH, "w", encoding="utf-8") as f:
+                json.dump(widths, f)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

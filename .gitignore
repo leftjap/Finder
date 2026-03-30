@@ -6,3 +6,4 @@ dist/
 *.lnk
 favorites.json
 webview_data/
+column_widths.json

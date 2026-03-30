@@ -24,30 +24,32 @@
     };
 
     // 컬럼 너비 저장 (depth별)
-    var COLUMN_WIDTHS_KEY = "explorer_column_widths";
+    var _cachedColumnWidths = null;
 
-    function loadColumnWidths() {
+    async function loadColumnWidths() {
+        if (_cachedColumnWidths !== null) return _cachedColumnWidths;
         try {
-            var stored = localStorage.getItem(COLUMN_WIDTHS_KEY);
-            return stored ? JSON.parse(stored) : {};
+            _cachedColumnWidths = await window.pywebview.api.get_column_widths();
         } catch (e) {
-            return {};
+            _cachedColumnWidths = {};
         }
+        return _cachedColumnWidths;
     }
 
-    function saveColumnWidth(depth, width) {
+    async function saveColumnWidth(depth, width) {
         if (typeof depth !== 'number' || isNaN(depth) || typeof width !== 'number' || isNaN(width)) return;
-        var widths = loadColumnWidths();
+        var widths = await loadColumnWidths();
         widths[String(depth)] = Math.round(width);
+        _cachedColumnWidths = widths;
         try {
-            localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(widths));
+            await window.pywebview.api.save_column_widths(widths);
         } catch (e) {
-            // localStorage 실패 무시
+            // 저장 실패 무시
         }
     }
 
-    function getColumnWidth(depth) {
-        var widths = loadColumnWidths();
+    async function getColumnWidth(depth) {
+        var widths = await loadColumnWidths();
         return widths[String(depth)] || null;
     }
 
@@ -314,7 +316,7 @@
         col.dataset.path = path;
 
         // 저장된 컬럼 너비 적용
-        var savedWidth = getColumnWidth(depth);
+        var savedWidth = await getColumnWidth(depth);
         col.style.width = (savedWidth || 220) + "px";
 
         if (result.items.length === 0) {
