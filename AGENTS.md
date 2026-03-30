@@ -32,6 +32,7 @@ index.html        — HTML 구조 + 컨텍스트 메뉴 DOM
 style.css         — 전체 스타일 (Windows 11 라이트 테마)
 icon.ico          — 앱 아이콘
 favorites.json    — 사이드바 즐겨찾기 (런타임 자동 생성, gitignore)
+column_widths.json — 컬럼 너비 설정 (런타임 자동 생성, gitignore)
 ```
 
 ---
