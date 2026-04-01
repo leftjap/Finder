@@ -586,7 +586,15 @@
         selectItem(row, depth);
     }
 
-    function selectItem(row, depth) {
+    async function selectItem(row, depth) {
+        // depth 0 폴더 전환 시: 이전 경로 저장
+        if (depth === 0 && row.dataset.isDir === "true") {
+            var prevSelected = getColumnByDepth(0) ? getColumnByDepth(0).querySelector(".column-item.selected") : null;
+            if (prevSelected && prevSelected.dataset.path !== row.dataset.path && prevSelected.dataset.isDir === "true" && columnPaths.length > 1) {
+                lastVisitedPaths[prevSelected.dataset.path] = columnPaths.slice();
+            }
+        }
+
         // 같은 depth + 하위 컬럼의 선택만 해제 (상위 컬럼 선택은 유지)
         var allCols = columnsEl.querySelectorAll(".column");
         for (var i = 0; i < allCols.length; i++) {
@@ -617,7 +625,15 @@
         }
 
         if (row.dataset.isDir === "true") {
-            loadColumn(row.dataset.path, depth + 1);
+            await loadColumn(row.dataset.path, depth + 1);
+
+            // depth 0 폴더 클릭 후: 저장된 경로 복원
+            if (depth === 0) {
+                var saved = lastVisitedPaths[row.dataset.path];
+                if (saved && saved.length > 2) {
+                    await restoreColumns(saved);
+                }
+            }
         } else {
             while (columnsEl.children.length > (depth + 1) * 2) {
                 columnsEl.removeChild(columnsEl.lastChild);

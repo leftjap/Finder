@@ -5,6 +5,7 @@
 
 ### Fixed
 - 사이드바 전환 시 경로 복원 안 됨 — selectItem 내 columnPaths 저장 시점이 async loadColumn 완료 전이어서 불완전. 사이드바 클릭 핸들러의 전환 직전 저장만 유지. (app.js)
+- 경로 복원이 컬럼 내 depth 0 폴더 전환에서 동작하지 않음 — 사이드바 전환만 처리했으나 실제 사용 패턴은 depth 0 컬럼 폴더 클릭. selectItem async 전환 + depth 0 전환 시 저장/복원 추가. [로직.사용패턴] (app.js)
 
 ### Changed
 - 프로젝트명 Explorer → Finder 전면 변경 — Windows explorer.exe 프로세스 이름 충돌 해소 목적. (main.py, Explorer.spec→Finder.spec, index.html, AGENTS.md, CLAUDE.md)
