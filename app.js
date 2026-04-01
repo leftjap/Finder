@@ -29,9 +29,9 @@
     async function loadColumnWidths() {
         if (_cachedColumnWidths !== null) return _cachedColumnWidths;
         try {
-            var response = await fetch('column_widths.json', { cache: 'no-store' });
-            if (response.ok) {
-                _cachedColumnWidths = await response.json();
+            var result = await window.pywebview.api.get_column_widths();
+            if (result && typeof result === 'object') {
+                _cachedColumnWidths = result;
             } else {
                 _cachedColumnWidths = {};
             }
@@ -110,6 +110,18 @@
 
         var favorites = await window.pywebview.api.get_favorites();
         renderSidebar(favorites);
+
+        // 컬럼 너비 미리 로드 (get_favorites와 같은 시점에서 호출하여 bridge 안정성 확보)
+        try {
+            var preloadedWidths = await window.pywebview.api.get_column_widths();
+            if (preloadedWidths && typeof preloadedWidths === 'object') {
+                _cachedColumnWidths = preloadedWidths;
+            } else {
+                _cachedColumnWidths = {};
+            }
+        } catch (e) {
+            _cachedColumnWidths = {};
+        }
 
         rootPath = favorites.length > 0 ? favorites[0].path : await window.pywebview.api.get_root();
         await loadColumn(rootPath, 0);

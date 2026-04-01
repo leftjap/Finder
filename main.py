@@ -1,4 +1,4 @@
-# PROJECT: explorer
+# PROJECT: finder
 """Miller Columns 파일 탐색기 — pywebview 엔트리포인트"""
 
 import os
@@ -17,7 +17,7 @@ def get_resource_path(filename):
 def main():
     api = Api()
     window = webview.create_window(
-        title="Explorer",
+        title="Finder",
         url=get_resource_path("index.html"),
         js_api=api,
         width=1200,
