@@ -5,7 +5,9 @@
 
 ## finder 고유 주의
 
-- 코드 변경 후 PyInstaller exe 재빌드 필수. `pyinstaller Finder.spec`
+- 코드 변경 후 PyInstaller exe 재빌드 필수
+  - 명령: `cd /c/dev/apps/finder && pyinstaller Finder.spec && rm -rf /c/apps/Finder.pending && cp -r dist/Finder /c/apps/Finder.pending`
+  - `cmd //c build.bat` 사용 금지 (Git Bash CWD 미상속)
 - favorites.json은 gitignore 대상. 런타임 자동 생성. 경로 하드코딩 금지
 - api.py _is_allowed()로 경로 보안. 우회 금지
 - 새 리소스 파일(html/js/css) 추가 시 PyInstaller --add-data에도 추가

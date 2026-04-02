@@ -43,11 +43,11 @@ column_widths.json — 컬럼 너비 설정 (런타임 자동 생성, gitignore)
 PyInstaller onedir 빌드. 코드 변경 후 exe 재빌드를 하지 않으면 변경분이 반영되지 않는다.
 **모든 작업지시서의 커밋 Step 앞에 exe 재빌드 Step을 포함한다.**
 
-빌드 명령:
+빌드 명령 (Git Bash):
+```bash
+cd /c/dev/apps/finder && pyinstaller Finder.spec && rm -rf /c/apps/Finder.pending && cp -r dist/Finder /c/apps/Finder.pending
 ```
-cd C:\dev\apps\finder
-cmd //c build.bat
-```
+⚠️ `cmd //c build.bat` 사용 금지 — Claude Code는 Git Bash를 사용하므로 cmd.exe CWD 미상속 문제 발생
 
 출력 경로: `C:\dev\apps\finder\dist\Finder\` → `C:\apps\Finder.pending\` 로 자동 복사
 사용자 실행 경로: `C:\apps\Finder\Finder.exe` (작업표시줄 고정 대상)

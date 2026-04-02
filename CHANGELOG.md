@@ -1,5 +1,8 @@
 ## 2026-04-02
 
+### Fixed
+- 빌드 명령을 Git Bash 호환으로 수정 — cmd //c build.bat → pyinstaller + cp 직접 호출. Claude Code Git Bash 환경에서 cmd.exe CWD 미상속 해결. [환경.빌드명령] (AGENTS.md, CLAUDE.md)
+
 ### Added
 - Sentry エラー監視を追加 — CDN Loader方式、environment: desktop. (index.html)
 
