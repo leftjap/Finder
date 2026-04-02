@@ -49,9 +49,9 @@ cd C:\dev\apps\finder
 build.bat
 ```
 
-출력 경로: `C:\dev\apps\finder\dist\Finder\` → `C:\apps\Finder\` 로 자동 복사
+출력 경로: `C:\dev\apps\finder\dist\Finder\` → `C:\apps\Finder.pending\` 로 자동 복사
 사용자 실행 경로: `C:\apps\Finder\Finder.exe` (작업표시줄 고정 대상)
-빌드는 앱 실행 중에도 완료됨 (실행 중 폴더를 rename 후 교체). 반영은 앱 재실행 시.
+빌드는 앱 실행 중에도 완료됨 (pending 폴더에 복사). 반영은 앱 재실행 시 자가 업데이트로 적용.
 
 ⚠️ .spec은 레포에 포함 필수 (gitignore 제외). onedir 모드 사용 — COLLECT 블록 존재, EXE에 exclude_binaries=True. onefile 전환 금지 (pywebview 동적 import 문제 발생).
 

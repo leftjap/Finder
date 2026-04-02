@@ -1,8 +1,8 @@
-# PROJECT: finder
 """Miller Columns 파일 탐색기 — pywebview 엔트리포인트"""
 
 import os
 import sys
+import subprocess
 import webview
 from api import Api
 
@@ -12,6 +12,22 @@ def get_resource_path(filename):
     if getattr(sys, '_MEIPASS', None):
         return os.path.join(sys._MEIPASS, filename)
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+
+
+def apply_pending_update():
+    """C:\\apps\\Finder.pending\\이 존재하면 updater.bat을 실행하고 종료한다."""
+    pending_dir = r"C:\apps\Finder.pending"
+    if not os.path.isdir(pending_dir):
+        return
+    updater_path = get_resource_path("updater.bat")
+    if not os.path.isfile(updater_path):
+        return
+    subprocess.Popen(
+        ["cmd", "/c", updater_path],
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+        close_fds=True,
+    )
+    sys.exit(0)
 
 
 def main():
@@ -34,4 +50,5 @@ def main():
 
 
 if __name__ == "__main__":
+    apply_pending_update()
     main()

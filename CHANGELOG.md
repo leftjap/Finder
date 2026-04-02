@@ -6,6 +6,7 @@
 ### Changed
 - 빌드 중 앱 종료 불필요 — 실행 중 폴더 rename 후 교체 방식. build.bat 도입. (build.bat, AGENTS.md)
 - 빌드 경로 분리 — 빌드 후 C:\apps\Finder\로 자동 복사, 작업표시줄 고정 유지. (AGENTS.md)
+- build.bat을 pending 방식으로 전환 — 앱 실행 중 빌드 가능, 재실행 시 자가 업데이트 적용. (build.bat, main.py, updater.bat, Finder.spec)
 
 ## 2026-04-01
 

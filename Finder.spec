@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('index.html', '.'), ('style.css', '.'), ('app.js', '.'), ('icon.ico', '.')],
+    datas=[('index.html', '.'), ('style.css', '.'), ('app.js', '.'), ('icon.ico', '.'), ('updater.bat', '.')],
     hiddenimports=['send2trash'],
     hookspath=[],
     hooksconfig={},

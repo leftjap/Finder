@@ -8,16 +8,13 @@ if errorlevel 1 (
     exit /b 1
 )
 
-echo [2/3] Deploying to C:\apps\Finder\...
-rd /s /q C:\apps\Finder.old 2>nul
-ren C:\apps\Finder Finder.old 2>nul
-robocopy dist\Finder C:\apps\Finder /E /NJH /NJS
+echo [2/3] Deploying to C:\apps\Finder.pending\...
+rd /s /q C:\apps\Finder.pending 2>nul
+robocopy dist\Finder C:\apps\Finder.pending /E /NJH /NJS
 if errorlevel 8 (
-    echo Deploy failed. Rolling back...
-    rd /s /q C:\apps\Finder 2>nul
-    ren C:\apps\Finder.old Finder 2>nul
+    echo Deploy failed.
+    rd /s /q C:\apps\Finder.pending 2>nul
     exit /b 1
 )
-rd /s /q C:\apps\Finder.old 2>nul
 
-echo [3/3] Done. Restart app to apply changes.
+echo [3/3] Done. Restart Finder to apply update.
