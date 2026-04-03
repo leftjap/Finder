@@ -1,3 +1,11 @@
+## 2026-04-03
+
+### Changed
+- 실행 경로를 C:\apps\Finder\에서 C:\dev\apps\finder\bin\으로 통합 (main.py, updater.bat, .gitignore, CLAUDE.md, AGENTS.md)
+
+### Removed
+- build.bat 삭제 — 사용 금지 파일
+
 ## 2026-04-02
 
 ### Fixed

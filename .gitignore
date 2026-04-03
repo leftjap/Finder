@@ -7,3 +7,7 @@ dist/
 favorites.json
 webview_data/
 column_widths.json
+bin/
+bin.old/
+bin.pending/
+finder-updater.bat

@@ -15,15 +15,27 @@ def get_resource_path(filename):
 
 
 def apply_pending_update():
-    """C:\\apps\\Finder.pending\\이 존재하면 updater.bat을 실행하고 종료한다."""
-    pending_dir = r"C:\apps\Finder.pending"
+    """bin.pending\이 존재하면 updater.bat을 프로젝트 루트에 복사 후 실행하고 종료한다."""
+    if getattr(sys, '_MEIPASS', None):
+        # packaged: bin\_internal\ → 프로젝트 루트
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(sys.executable)))
+    else:
+        project_root = os.path.dirname(os.path.abspath(__file__))
+
+    pending_dir = os.path.join(project_root, "bin.pending")
     if not os.path.isdir(pending_dir):
         return
-    updater_path = get_resource_path("updater.bat")
-    if not os.path.isfile(updater_path):
+
+    src_bat = get_resource_path("updater.bat")
+    if not os.path.isfile(src_bat):
         return
+
+    dest_bat = os.path.join(project_root, "finder-updater.bat")
+    import shutil
+    shutil.copy2(src_bat, dest_bat)
+
     subprocess.Popen(
-        ["cmd", "/c", updater_path],
+        ["cmd", "/c", dest_bat],
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
         close_fds=True,
     )
