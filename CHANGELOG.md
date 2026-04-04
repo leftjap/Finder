@@ -1,3 +1,8 @@
+## 2026-04-05
+
+### Fixed
+- 자가 업데이트(updater.bat)가 실행되지 않던 문제 수정 [환경.핸들부재] — PyInstaller windowed 모드에서 subprocess 핸들 부재로 OSError 발생. stdin/stdout/stderr에 DEVNULL 지정. (main.py)
+
 ## 2026-04-04
 
 ### Added

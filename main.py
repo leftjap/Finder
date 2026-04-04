@@ -38,6 +38,9 @@ def apply_pending_update():
     try:
         subprocess.Popen(
             ["cmd", "/c", dest_bat],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
             close_fds=True,
         )
