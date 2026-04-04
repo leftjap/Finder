@@ -15,7 +15,8 @@ def get_resource_path(filename):
 
 
 def apply_pending_update():
-    """bin.pending\이 존재하면 updater.bat을 프로젝트 루트에 복사 후 실행하고 종료한다."""
+    """bin.pending\이 존재하면 updater.bat을 프로젝트 루트에 복사 후 실행하고 종료한다.
+    bin.failed\이 존재하면 업데이트 실패 상태이므로 무시하고 앱을 기동한다."""
     if getattr(sys, '_MEIPASS', None):
         # packaged: bin\_internal\ → 프로젝트 루트
         project_root = os.path.dirname(os.path.dirname(os.path.abspath(sys.executable)))
@@ -34,11 +35,16 @@ def apply_pending_update():
     import shutil
     shutil.copy2(src_bat, dest_bat)
 
-    subprocess.Popen(
-        ["cmd", "/c", dest_bat],
-        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
-        close_fds=True,
-    )
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", dest_bat],
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS,
+            close_fds=True,
+        )
+    except OSError:
+        # updater 실행 실패 시 앱을 정상 기동한다
+        return
+
     sys.exit(0)
 
 

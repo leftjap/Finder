@@ -3,6 +3,9 @@
 ### Added
 - 포커스 복귀 시 컬럼 자동 갱신 — 외부 앱에서 파일 추가/삭제 후 Finder 창으로 돌아오면 열린 컬럼이 자동으로 새로고침됨. 300ms 디바운스 적용. (app.js)
 
+### Fixed
+- 자가 업데이트 실패 시 앱 영구 실행 불가 — updater.bat의 bin rename 실패 시 bin.pending이 남아 매 실행마다 sys.exit 루프 발생. 3회 재시도 + 실패 시 bin.failed로 전환하여 앱 정상 기동 복구. [로직.업데이트루프] (main.py, updater.bat)
+
 ## 2026-04-03
 
 ### Added
