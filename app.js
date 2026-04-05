@@ -661,6 +661,52 @@
         var path = row.dataset.path;
         var event = window._lastClickEvent;
 
+        // Shift+클릭: 같은 컬럼 내 범위 선택
+        if (event && event.shiftKey && !event.ctrlKey) {
+            clearTimeout(renameState.renameTimeout);
+            renameState.lastClickedPath = null;
+
+            var col = row.parentElement;
+            var items = getSelectableItems(col);
+            var lastSelected = col.querySelector(".selected");
+
+            if (!lastSelected) {
+                // 기존 선택 없으면 단일 선택으로 폴백
+                selectItem(row, depth);
+                return;
+            }
+
+            var lastIdx = -1;
+            var clickedIdx = -1;
+            for (var i = 0; i < items.length; i++) {
+                if (items[i] === lastSelected) lastIdx = i;
+                if (items[i] === row) clickedIdx = i;
+            }
+
+            if (lastIdx === -1 || clickedIdx === -1) {
+                selectItem(row, depth);
+                return;
+            }
+
+            var minIdx = Math.min(lastIdx, clickedIdx);
+            var maxIdx = Math.max(lastIdx, clickedIdx);
+
+            // 같은 컬럼 내 기존 선택 해제
+            var prevSelected = col.querySelectorAll(".selected");
+            for (var j = 0; j < prevSelected.length; j++) {
+                prevSelected[j].classList.remove("selected");
+            }
+
+            // 범위 선택
+            for (var k = minIdx; k <= maxIdx; k++) {
+                items[k].classList.add("selected");
+            }
+
+            var selCount = maxIdx - minIdx + 1;
+            statusbarEl.textContent = selCount + "개 선택됨";
+            return;
+        }
+
         // Ctrl+클릭: 같은 컬럼 내 토글 선택
         if (event && event.ctrlKey) {
             clearTimeout(renameState.renameTimeout);
