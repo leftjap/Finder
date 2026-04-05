@@ -2,6 +2,7 @@
 
 ### Added
 - Shift+클릭으로 같은 컬럼 내 파일 범위 선택 — Windows 탐색기 표준 동작. (app.js)
+- 마키 선택(Marquee Selection) — 컬럼 빈 영역에서 마우스 드래그로 사각형 범위 내 항목 일괄 선택. 단일 컬럼 내 동작. (app.js, style.css)
 
 ### Fixed
 - 자가 업데이트(updater.bat)가 실행되지 않던 문제 수정 [환경.핸들부재] — PyInstaller windowed 모드에서 subprocess 핸들 부재로 OSError 발생. stdin/stdout/stderr에 DEVNULL 지정. (main.py)

@@ -109,6 +109,7 @@
         }, true);
 
         initContextMenu();
+        initMarquee();
         initSidebarResizer();
 
         var favorites = await window.pywebview.api.get_favorites();
@@ -1361,6 +1362,116 @@
             }
         }
         updateBreadcrumb();
+    }
+
+    // --- 마키 선택 (Marquee Selection) ---
+
+    function initMarquee() {
+        var marqueeEl = document.createElement("div");
+        marqueeEl.className = "marquee-selection";
+        document.body.appendChild(marqueeEl);
+
+        var active = false;
+        var startCol = null;
+        var startX = 0;
+        var startY = 0;
+        var overlay = null;
+
+        columnsEl.addEventListener("mousedown", function(e) {
+            // 좌클릭만, 항목 위가 아닌 빈 영역에서만
+            if (e.button !== 0) return;
+            if (e.target.closest(".column-item")) return;
+            if (e.target.closest(".column-resizer")) return;
+
+            var col = e.target.closest(".column");
+            if (!col) return;
+
+            e.preventDefault(); // 텍스트 선택 방지
+
+            active = true;
+            startCol = col;
+            startX = e.clientX;
+            startY = e.clientY;
+
+            // Ctrl 없으면 기존 선택 해제
+            if (!e.ctrlKey) {
+                var prevSelected = startCol.querySelectorAll(".selected");
+                for (var i = 0; i < prevSelected.length; i++) {
+                    prevSelected[i].classList.remove("selected");
+                }
+            }
+
+            marqueeEl.style.left = startX + "px";
+            marqueeEl.style.top = startY + "px";
+            marqueeEl.style.width = "0px";
+            marqueeEl.style.height = "0px";
+            marqueeEl.style.display = "none";
+
+            // 투명 오버레이로 전체 화면 마우스 이벤트 캡처
+            overlay = document.createElement("div");
+            overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;z-index:9998;cursor:crosshair;";
+            document.body.appendChild(overlay);
+
+            overlay.addEventListener("mousemove", onMouseMove);
+            overlay.addEventListener("mouseup", onMouseUp);
+        });
+
+        function onMouseMove(e) {
+            if (!active) return;
+
+            var x = Math.min(startX, e.clientX);
+            var y = Math.min(startY, e.clientY);
+            var w = Math.abs(e.clientX - startX);
+            var h = Math.abs(e.clientY - startY);
+
+            marqueeEl.style.left = x + "px";
+            marqueeEl.style.top = y + "px";
+            marqueeEl.style.width = w + "px";
+            marqueeEl.style.height = h + "px";
+            if (w > 3 || h > 3) {
+                marqueeEl.style.display = "block";
+            }
+
+            // 마키 박스와 교차하는 항목 선택
+            var marqueeRect = { left: x, top: y, right: x + w, bottom: y + h };
+            var items = getSelectableItems(startCol);
+            for (var i = 0; i < items.length; i++) {
+                var itemRect = items[i].getBoundingClientRect();
+                var intersects = !(itemRect.right < marqueeRect.left ||
+                                   itemRect.left > marqueeRect.right ||
+                                   itemRect.bottom < marqueeRect.top ||
+                                   itemRect.top > marqueeRect.bottom);
+                if (intersects) {
+                    items[i].classList.add("selected");
+                } else {
+                    items[i].classList.remove("selected");
+                }
+            }
+
+            var selCount = startCol.querySelectorAll(".selected").length;
+            if (selCount > 1) {
+                statusbarEl.textContent = selCount + "개 선택됨";
+            } else if (selCount === 1) {
+                var sel = startCol.querySelector(".selected");
+                statusbarEl.textContent = sel ? sel.dataset.name : "";
+            } else {
+                statusbarEl.textContent = "";
+            }
+        }
+
+        function onMouseUp(e) {
+            if (!active) return;
+            active = false;
+            startCol = null;
+            marqueeEl.style.display = "none";
+
+            if (overlay) {
+                overlay.removeEventListener("mousemove", onMouseMove);
+                overlay.removeEventListener("mouseup", onMouseUp);
+                document.body.removeChild(overlay);
+                overlay = null;
+            }
+        }
     }
 
     // --- 컨텍스트 메뉴 ---
